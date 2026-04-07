@@ -302,8 +302,11 @@
       totalComments: scrapedComments.length,
     };
 
-    // Save report data to background
-    await chrome.runtime.sendMessage({
+    // Save report data to chrome.storage.local (persists across service worker restarts)
+    await chrome.storage.local.set({ reportData: reportData });
+
+    // Also save to background (legacy)
+    chrome.runtime.sendMessage({
       type: "SAVE_REPORT",
       data: reportData,
     });

@@ -239,15 +239,35 @@
       const reportEl = document.getElementById("report");
       const loadingEl = document.getElementById("loading");
 
-      // Get report data from background
-      const response = await chrome.runtime.sendMessage({ type: "GET_REPORT" });
+      // Try chrome.storage.local first (persists reliably)
+      let reportData = null;
+      try {
+        const stored = await chrome.storage.local.get(["reportData"]);
+        if (stored.reportData) {
+          reportData = stored.reportData;
+        }
+      } catch (e) {
+        console.error("Failed to read from storage:", e);
+      }
 
-      if (!response || !response.success || !response.data) {
+      // Fallback: try background service worker
+      if (!reportData) {
+        try {
+          const response = await chrome.runtime.sendMessage({ type: "GET_REPORT" });
+          if (response && response.success && response.data) {
+            reportData = response.data;
+          }
+        } catch (e) {
+          console.error("Failed to get report from background:", e);
+        }
+      }
+
+      if (!reportData) {
         loadingEl.textContent = "Tidak ada data laporan. Jalankan analisis terlebih dahulu.";
         return;
       }
 
-      const { analysis, comments, timestamp, totalComments } = response.data;
+      const { analysis, comments, timestamp, totalComments } = reportData;
       const date = new Date(timestamp);
       const dateStr = date.toLocaleDateString("id-ID", {
         weekday: "long",
