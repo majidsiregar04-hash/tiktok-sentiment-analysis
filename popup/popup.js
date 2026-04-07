@@ -325,13 +325,16 @@
     // Save to storage FIRST, then open tab
     try {
       await chrome.storage.local.set({ reportData: reportData });
+      // Verify the write succeeded
+      const check = await chrome.storage.local.get(["reportData"]);
+      console.log("[TikTok Analyzer] Storage write verified:", !!check.reportData);
     } catch (e) {
       console.error("[TikTok Analyzer] Storage save failed:", e);
     }
 
-    // Save to background too (fallback, fire-and-forget)
+    // Save to background too (fallback)
     try {
-      chrome.runtime.sendMessage({ type: "SAVE_REPORT", data: reportData });
+      await chrome.runtime.sendMessage({ type: "SAVE_REPORT", data: reportData });
     } catch (e) { /* ignore */ }
 
     // Open the tab
