@@ -322,19 +322,25 @@
       totalComments: scrapedComments.length,
     };
 
-    // Save report data to chrome.storage.local (persists across service worker restarts)
-    await chrome.storage.local.set({ reportData: reportData });
+    // Save to storage FIRST, then open tab
+    try {
+      await chrome.storage.local.set({ reportData: reportData });
+    } catch (e) {
+      console.error("[TikTok Analyzer] Storage save failed:", e);
+    }
 
-    // Also save to background (legacy)
-    chrome.runtime.sendMessage({
-      type: "SAVE_REPORT",
-      data: reportData,
-    });
+    // Save to background too (fallback, fire-and-forget)
+    try {
+      chrome.runtime.sendMessage({ type: "SAVE_REPORT", data: reportData });
+    } catch (e) { /* ignore */ }
 
-    // Open report page
-    chrome.tabs.create({
-      url: chrome.runtime.getURL("report/report.html"),
-    });
+    // Open the tab
+    try {
+      chrome.tabs.create({ url: chrome.runtime.getURL("report/report.html") });
+    } catch (e) {
+      // Fallback: open via window.open
+      window.open(chrome.runtime.getURL("report/report.html"));
+    }
   }
 
   // --- Utilities ---

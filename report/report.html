@@ -239,27 +239,34 @@
       const reportEl = document.getElementById("report");
       const loadingEl = document.getElementById("loading");
 
-      // Try chrome.storage.local first (persists reliably)
-      let reportData = null;
-      try {
-        const stored = await chrome.storage.local.get(["reportData"]);
-        if (stored.reportData) {
-          reportData = stored.reportData;
+      async function loadReportData() {
+        // Try chrome.storage.local first
+        try {
+          const stored = await chrome.storage.local.get(["reportData"]);
+          if (stored.reportData) return stored.reportData;
+        } catch (e) {
+          console.error("Failed to read from storage:", e);
         }
-      } catch (e) {
-        console.error("Failed to read from storage:", e);
-      }
 
-      // Fallback: try background service worker
-      if (!reportData) {
+        // Fallback: try background service worker
         try {
           const response = await chrome.runtime.sendMessage({ type: "GET_REPORT" });
           if (response && response.success && response.data) {
-            reportData = response.data;
+            return response.data;
           }
         } catch (e) {
           console.error("Failed to get report from background:", e);
         }
+
+        return null;
+      }
+
+      // Try loading with retries (data might still be writing)
+      let reportData = null;
+      for (let attempt = 0; attempt < 3; attempt++) {
+        reportData = await loadReportData();
+        if (reportData) break;
+        await new Promise((r) => setTimeout(r, 500));
       }
 
       if (!reportData) {
