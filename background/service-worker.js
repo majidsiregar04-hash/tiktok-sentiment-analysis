@@ -119,6 +119,18 @@ async function callGemini(prompt, apiKey) {
   return parseGeminiJSON(text);
 }
 
+// --- Broadcast progress to popup ---
+function broadcastProgress(current, total) {
+  chrome.runtime.sendMessage({
+    type: "ANALYSIS_PROGRESS",
+    current: current,
+    total: total,
+    progress: current / total,
+  }).catch(() => {
+    // popup might be closed, ignore
+  });
+}
+
 // --- Split into batches ---
 function splitIntoBatches(arr, size) {
   const batches = [];
@@ -138,11 +150,14 @@ async function handleAnalysis(comments, apiKey) {
 
   // Small batch: single call with full prompt
   if (comments.length <= BATCH_SIZE) {
+    broadcastProgress(1, 2);
     const commentTexts = comments.map(
       (c, i) => `${i + 1}. @${c.username}: ${c.text}`
     );
     const prompt = buildFullPrompt(commentTexts);
-    return await callGemini(prompt, apiKey);
+    const result = await callGemini(prompt, apiKey);
+    broadcastProgress(2, 2);
+    return result;
   }
 
   // Large batch: classify in batches, then summarize
@@ -152,8 +167,13 @@ async function handleAnalysis(comments, apiKey) {
   const allClassified = [];
   let globalIndex = 0;
 
+  const totalSteps = batches.length + 1; // batches + summary
+
   for (let i = 0; i < batches.length; i++) {
     console.log("[TikTok Analyzer] Processing batch", i + 1, "of", batches.length);
+
+    // Send progress to popup
+    broadcastProgress(i + 1, totalSteps);
 
     const batch = batches[i];
     const commentTexts = batch.map(
@@ -173,6 +193,7 @@ async function handleAnalysis(comments, apiKey) {
 
   // Final summary call with a sample of comments
   console.log("[TikTok Analyzer] Generating summary...");
+  broadcastProgress(totalSteps, totalSteps);
   const sampleSize = Math.min(comments.length, 80);
   const step = Math.max(1, Math.floor(comments.length / sampleSize));
   const sampleComments = [];

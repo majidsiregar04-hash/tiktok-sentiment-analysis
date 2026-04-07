@@ -300,14 +300,14 @@
 
   // --- Helper: extract username from any element ---
   function extractUsernameFromElement(el) {
-    // Try a[href^="/@"] first
+    // Try a[href^="/@"] inside element first
     const link = el.querySelector('a[href^="/@"]');
     if (link) {
       const href = link.getAttribute("href");
       if (href) return href.replace(/^\/@/, "");
     }
 
-    // Try data-e2e username selectors
+    // Try data-e2e username selectors inside element
     const userSelectors = [
       '[data-e2e="comment-username-1"]',
       '[data-e2e="comment-username"]',
@@ -318,6 +318,36 @@
     for (const sel of userSelectors) {
       const found = el.querySelector(sel);
       if (found) return found.textContent.trim().replace(/^@/, "");
+    }
+
+    // Walk up parent elements (up to 5 levels) to find username link
+    let parent = el.parentElement;
+    for (let i = 0; i < 5 && parent && parent !== document.body; i++) {
+      const parentLink = parent.querySelector('a[href^="/@"]');
+      if (parentLink) {
+        const href = parentLink.getAttribute("href");
+        if (href) return href.replace(/^\/@/, "");
+      }
+      for (const sel of userSelectors) {
+        const found = parent.querySelector(sel);
+        if (found) return found.textContent.trim().replace(/^@/, "");
+      }
+      parent = parent.parentElement;
+    }
+
+    // Check previous siblings
+    let sibling = el.previousElementSibling;
+    for (let i = 0; i < 3 && sibling; i++) {
+      const sibLink = sibling.querySelector('a[href^="/@"]');
+      if (sibLink) {
+        const href = sibLink.getAttribute("href");
+        if (href) return href.replace(/^\/@/, "");
+      }
+      if (sibling.matches && sibling.matches('a[href^="/@"]')) {
+        const href = sibling.getAttribute("href");
+        if (href) return href.replace(/^\/@/, "");
+      }
+      sibling = sibling.previousElementSibling;
     }
 
     return "unknown";

@@ -169,10 +169,12 @@
 
   async function onScrapingComplete() {
     stopBtn.classList.add("hidden");
-    scrapeBtn.classList.remove("hidden");
+    // Hide scrape button during analysis
+    scrapeBtn.classList.add("hidden");
 
     if (scrapedComments.length === 0) {
       progressSection.classList.add("hidden");
+      scrapeBtn.classList.remove("hidden");
       showStatus(
         "Tidak ditemukan komentar. Pastikan halaman video TikTok sudah terbuka dan komentar terlihat.",
         "error"
@@ -180,16 +182,30 @@
       return;
     }
 
-    // Update progress text
+    // Switch to analysis progress UI
+    const progressFill = document.getElementById("progressFill");
+    progressFill.classList.remove("pulsing");
+    progressFill.style.width = "10%";
     progressText.innerHTML = `Menganalisis <span>${scrapedComments.length}</span> komentar dengan AI...`;
 
     // Get API key
     const stored = await chrome.storage.local.get(["geminiApiKey"]);
     if (!stored.geminiApiKey) {
       progressSection.classList.add("hidden");
+      scrapeBtn.classList.remove("hidden");
       showStatus("Masukkan API key Gemini terlebih dahulu.", "error");
       return;
     }
+
+    // Listen for progress updates from background
+    const progressListener = (msg) => {
+      if (msg.type === "ANALYSIS_PROGRESS") {
+        const pct = Math.round(msg.progress * 100);
+        progressFill.style.width = `${Math.max(10, pct)}%`;
+        progressText.innerHTML = `Menganalisis batch <span>${msg.current}</span> dari <span>${msg.total}</span>...`;
+      }
+    };
+    chrome.runtime.onMessage.addListener(progressListener);
 
     // Send to background for analysis
     try {
@@ -199,16 +215,20 @@
         apiKey: stored.geminiApiKey,
       });
 
+      chrome.runtime.onMessage.removeListener(progressListener);
       progressSection.classList.add("hidden");
 
       if (response.success) {
         analysisResult = response.data;
         renderResults();
       } else {
+        scrapeBtn.classList.remove("hidden");
         showStatus(`Error: ${response.error}`, "error");
       }
     } catch (e) {
+      chrome.runtime.onMessage.removeListener(progressListener);
       progressSection.classList.add("hidden");
+      scrapeBtn.classList.remove("hidden");
       showStatus(`Error: ${e.message}`, "error");
     }
   }

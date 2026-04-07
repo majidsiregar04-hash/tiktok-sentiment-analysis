@@ -244,8 +244,8 @@ body::-webkit-scrollbar-thumb {
   height: 100%;
   background: linear-gradient(90deg, #25f4ee, #fe2c55);
   border-radius: 2px;
-  width: 30%;
-  transition: width 0.3s;
+  width: 0%;
+  transition: width 0.5s ease;
 }
 
 .progress-fill.pulsing {
