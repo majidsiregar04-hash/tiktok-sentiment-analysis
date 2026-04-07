@@ -1,0 +1,373 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Laporan Analisis Sentimen TikTok</title>
+  <style>
+    :root {
+      --bg: #0f0f0f;
+      --bg-card: #1a1a1a;
+      --bg-secondary: #222;
+      --text: #e8e8e8;
+      --text-secondary: #a0a0a0;
+      --text-muted: #666;
+      --accent: #25f4ee;
+      --positive: #25d366;
+      --negative: #ff4757;
+      --neutral: #95a5a6;
+      --border: #333;
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      line-height: 1.6;
+    }
+
+    .report {
+      max-width: 800px;
+      margin: 0 auto;
+      padding: 40px 24px;
+    }
+
+    @media print {
+      body { background: #fff; color: #111; }
+      .report { padding: 20px; }
+      .card { border: 1px solid #ddd; background: #fff; }
+      .no-print { display: none; }
+      .sentiment-label.positive, .topic-tag { color: #25d366; }
+      .sentiment-label.negative { color: #ff4757; }
+      .sentiment-label.neutral { color: #666; }
+      .bar-positive { background: #25d366; }
+      .bar-negative { background: #ff4757; }
+      .bar-neutral { background: #999; }
+    }
+
+    /* Header */
+    .report-header {
+      text-align: center;
+      margin-bottom: 32px;
+      padding-bottom: 24px;
+      border-bottom: 2px solid var(--border);
+    }
+
+    .report-header h1 {
+      font-size: 28px;
+      background: linear-gradient(135deg, #25f4ee, #fe2c55);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      margin-bottom: 8px;
+    }
+
+    .report-meta {
+      font-size: 13px;
+      color: var(--text-secondary);
+    }
+
+    .report-meta span {
+      margin: 0 8px;
+    }
+
+    /* Cards */
+    .card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 20px;
+      margin-bottom: 20px;
+    }
+
+    .card-title {
+      font-size: 14px;
+      font-weight: 700;
+      color: var(--accent);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 12px;
+    }
+
+    /* Summary */
+    .summary { font-size: 15px; line-height: 1.8; }
+
+    /* Sentiment */
+    .sentiment-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 12px;
+      margin-bottom: 20px;
+    }
+
+    .sentiment-card {
+      text-align: center;
+      padding: 16px;
+      border-radius: 8px;
+      background: var(--bg-secondary);
+    }
+
+    .sentiment-card.pos { border-left: 4px solid var(--positive); }
+    .sentiment-card.neu { border-left: 4px solid var(--neutral); }
+    .sentiment-card.neg { border-left: 4px solid var(--negative); }
+
+    .sentiment-card .pct {
+      font-size: 32px;
+      font-weight: 800;
+    }
+
+    .sentiment-card.pos .pct { color: var(--positive); }
+    .sentiment-card.neu .pct { color: var(--neutral); }
+    .sentiment-card.neg .pct { color: var(--negative); }
+
+    .sentiment-card .lbl {
+      font-size: 12px;
+      color: var(--text-secondary);
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+
+    .bar-row {
+      display: flex;
+      height: 12px;
+      border-radius: 6px;
+      overflow: hidden;
+    }
+
+    .bar-row > div { transition: width 0.5s; }
+    .bar-row .bar-positive { background: var(--positive); }
+    .bar-row .bar-neutral { background: var(--neutral); }
+    .bar-row .bar-negative { background: var(--negative); }
+
+    /* Topics */
+    .topic-tags { display: flex; flex-wrap: wrap; gap: 8px; }
+
+    .topic-tag {
+      padding: 6px 14px;
+      background: rgba(37, 244, 238, 0.1);
+      border: 1px solid rgba(37, 244, 238, 0.3);
+      border-radius: 16px;
+      font-size: 13px;
+      color: var(--accent);
+    }
+
+    /* Highlights */
+    .highlight-item {
+      padding: 12px;
+      background: var(--bg-secondary);
+      border-radius: 8px;
+      border-left: 3px solid var(--accent);
+      margin-bottom: 8px;
+    }
+
+    .highlight-user { font-size: 12px; color: var(--accent); font-weight: 600; }
+    .highlight-text { font-size: 14px; margin: 4px 0; }
+    .highlight-reason { font-size: 12px; color: var(--text-muted); font-style: italic; }
+
+    /* Comment Table */
+    .comment-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 13px;
+    }
+
+    .comment-table th {
+      text-align: left;
+      padding: 10px 8px;
+      border-bottom: 2px solid var(--border);
+      color: var(--text-secondary);
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .comment-table td {
+      padding: 8px;
+      border-bottom: 1px solid var(--border);
+      vertical-align: top;
+    }
+
+    .comment-table tr:last-child td { border-bottom: none; }
+
+    .badge {
+      display: inline-block;
+      padding: 2px 10px;
+      border-radius: 10px;
+      font-size: 11px;
+      font-weight: 600;
+    }
+
+    .badge.positif { background: rgba(37,211,102,0.15); color: var(--positive); }
+    .badge.netral { background: rgba(149,165,166,0.15); color: var(--neutral); }
+    .badge.negatif { background: rgba(255,71,87,0.15); color: var(--negative); }
+
+    /* Print button */
+    .print-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 10px 20px;
+      background: linear-gradient(135deg, #25f4ee, #fe2c55);
+      color: #fff;
+      border: none;
+      border-radius: 8px;
+      font-size: 14px;
+      font-weight: 700;
+      cursor: pointer;
+      margin-bottom: 24px;
+    }
+
+    .print-btn:hover { opacity: 0.9; }
+
+    /* Loading */
+    .loading {
+      text-align: center;
+      padding: 60px;
+      color: var(--text-secondary);
+      font-size: 16px;
+    }
+  </style>
+</head>
+<body>
+  <div class="report" id="report">
+    <div class="loading" id="loading">Memuat laporan...</div>
+  </div>
+
+  <script>
+    (async function () {
+      const reportEl = document.getElementById("report");
+      const loadingEl = document.getElementById("loading");
+
+      // Get report data from background
+      const response = await chrome.runtime.sendMessage({ type: "GET_REPORT" });
+
+      if (!response || !response.success || !response.data) {
+        loadingEl.textContent = "Tidak ada data laporan. Jalankan analisis terlebih dahulu.";
+        return;
+      }
+
+      const { analysis, comments, timestamp, totalComments } = response.data;
+      const date = new Date(timestamp);
+      const dateStr = date.toLocaleDateString("id-ID", {
+        weekday: "long",
+        year: "numeric",
+        month: "long",
+        day: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+      });
+
+      const sentiment = analysis.sentiment || {};
+      const pos = sentiment.positive || 0;
+      const neu = sentiment.neutral || 0;
+      const neg = sentiment.negative || 0;
+
+      function esc(str) {
+        if (!str) return "";
+        const d = document.createElement("div");
+        d.textContent = str;
+        return d.innerHTML;
+      }
+
+      // Build report HTML
+      let html = `
+        <button class="print-btn no-print" onclick="window.print()">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M6 9V2h12v7M6 18H4a2 2 0 01-2-2v-5a2 2 0 012-2h16a2 2 0 012 2v5a2 2 0 01-2 2h-2"/>
+            <rect x="6" y="14" width="12" height="8"/>
+          </svg>
+          Cetak / Simpan PDF
+        </button>
+
+        <div class="report-header">
+          <h1>Laporan Analisis Sentimen TikTok</h1>
+          <div class="report-meta">
+            <span>${dateStr}</span>
+            <span>|</span>
+            <span>${totalComments} komentar dianalisis</span>
+          </div>
+        </div>
+
+        <!-- Summary -->
+        <div class="card">
+          <div class="card-title">Ringkasan</div>
+          <div class="summary">${esc(analysis.summary)}</div>
+        </div>
+
+        <!-- Sentiment -->
+        <div class="card">
+          <div class="card-title">Distribusi Sentimen</div>
+          <div class="sentiment-grid">
+            <div class="sentiment-card pos">
+              <div class="pct">${pos}%</div>
+              <div class="lbl">Positif</div>
+            </div>
+            <div class="sentiment-card neu">
+              <div class="pct">${neu}%</div>
+              <div class="lbl">Netral</div>
+            </div>
+            <div class="sentiment-card neg">
+              <div class="pct">${neg}%</div>
+              <div class="lbl">Negatif</div>
+            </div>
+          </div>
+          <div class="bar-row">
+            <div class="bar-positive" style="width:${pos}%"></div>
+            <div class="bar-neutral" style="width:${neu}%"></div>
+            <div class="bar-negative" style="width:${neg}%"></div>
+          </div>
+        </div>
+
+        <!-- Topics -->
+        <div class="card">
+          <div class="card-title">Topik Utama</div>
+          <div class="topic-tags">
+            ${(analysis.topics || []).map((t) => `<span class="topic-tag">${esc(t)}</span>`).join("")}
+          </div>
+        </div>
+
+        <!-- Highlights -->
+        <div class="card">
+          <div class="card-title">Komentar Menarik</div>
+          ${(analysis.highlights || []).map((h) => `
+            <div class="highlight-item">
+              <div class="highlight-user">@${esc(h.username)}</div>
+              <div class="highlight-text">${esc(h.text)}</div>
+              <div class="highlight-reason">${esc(h.reason)}</div>
+            </div>
+          `).join("")}
+        </div>
+
+        <!-- All Comments -->
+        <div class="card">
+          <div class="card-title">Semua Komentar (${(analysis.comments || []).length})</div>
+          <table class="comment-table">
+            <thead>
+              <tr>
+                <th>#</th>
+                <th>Username</th>
+                <th>Komentar</th>
+                <th>Sentimen</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${(analysis.comments || []).map((c, i) => `
+                <tr>
+                  <td>${i + 1}</td>
+                  <td>@${esc(c.username)}</td>
+                  <td>${esc(c.text)}</td>
+                  <td><span class="badge ${c.sentiment}">${c.sentiment}</span></td>
+                </tr>
+              `).join("")}
+            </tbody>
+          </table>
+        </div>
+      `;
+
+      loadingEl.remove();
+      reportEl.innerHTML = html;
+    })();
+  </script>
+</body>
+</html>

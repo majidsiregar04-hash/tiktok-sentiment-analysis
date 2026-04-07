@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>TikTok Comment Analyzer</title>
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <div class="container">
+    <!-- Header -->
+    <header class="header">
+      <div class="logo">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+          <rect width="24" height="24" rx="6" fill="#25F4EE"/>
+          <path d="M7 10h10M7 14h6" stroke="#121212" stroke-width="2" stroke-linecap="round"/>
+        </svg>
+        <h1>TikTok Comment Analyzer</h1>
+      </div>
+      <p class="subtitle">Analisis sentimen komentar dengan AI</p>
+    </header>
+
+    <!-- API Key Section -->
+    <section class="section" id="apiKeySection">
+      <label class="label">Gemini API Key</label>
+      <div class="input-group">
+        <input type="password" id="apiKeyInput" placeholder="Masukkan API key..." class="input">
+        <button id="toggleKeyBtn" class="btn-icon" title="Tampilkan/Sembunyikan">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+            <circle cx="12" cy="12" r="3"/>
+          </svg>
+        </button>
+        <button id="saveKeyBtn" class="btn btn-sm">Simpan</button>
+      </div>
+      <p class="hint" id="apiKeyStatus"></p>
+    </section>
+
+    <!-- Settings -->
+    <section class="section">
+      <label class="label">Limit Komentar</label>
+      <select id="commentLimit" class="select">
+        <option value="50">50 komentar</option>
+        <option value="100" selected>100 komentar</option>
+        <option value="200">200 komentar</option>
+        <option value="500">500 komentar</option>
+        <option value="0">Semua komentar</option>
+      </select>
+    </section>
+
+    <!-- Action Buttons -->
+    <section class="section">
+      <button id="scrapeBtn" class="btn btn-primary btn-full">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3"/>
+        </svg>
+        Scrape &amp; Analisis Komentar
+      </button>
+      <button id="stopBtn" class="btn btn-success btn-full hidden">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <rect x="6" y="6" width="12" height="12" rx="2"/>
+        </svg>
+        Selesai Scraping
+      </button>
+    </section>
+
+    <!-- Progress -->
+    <section id="progressSection" class="section hidden">
+      <div class="progress-bar">
+        <div class="progress-fill pulsing" id="progressFill"></div>
+      </div>
+      <p class="progress-text" id="progressText">Scroll halaman TikTok ke bawah... <span id="commentCount">0</span> komentar ditemukan</p>
+    </section>
+
+    <!-- Status Messages -->
+    <div id="statusMessage" class="status hidden"></div>
+
+    <!-- Results -->
+    <section id="resultsSection" class="section hidden">
+      <!-- Summary -->
+      <div class="result-card">
+        <h3 class="card-title">Ringkasan</h3>
+        <p id="summaryText" class="summary-text"></p>
+      </div>
+
+      <!-- Sentiment Bars -->
+      <div class="result-card">
+        <h3 class="card-title">Sentimen</h3>
+        <div class="sentiment-bars">
+          <div class="sentiment-row">
+            <span class="sentiment-label positive">Positif</span>
+            <div class="bar-container">
+              <div class="bar bar-positive" id="barPositive"></div>
+            </div>
+            <span class="sentiment-pct" id="pctPositive">0%</span>
+          </div>
+          <div class="sentiment-row">
+            <span class="sentiment-label neutral">Netral</span>
+            <div class="bar-container">
+              <div class="bar bar-neutral" id="barNeutral"></div>
+            </div>
+            <span class="sentiment-pct" id="pctNeutral">0%</span>
+          </div>
+          <div class="sentiment-row">
+            <span class="sentiment-label negative">Negatif</span>
+            <div class="bar-container">
+              <div class="bar bar-negative" id="barNegative"></div>
+            </div>
+            <span class="sentiment-pct" id="pctNegative">0%</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Topics -->
+      <div class="result-card">
+        <h3 class="card-title">Topik Utama</h3>
+        <div id="topicTags" class="topic-tags"></div>
+      </div>
+
+      <!-- Highlights -->
+      <div class="result-card">
+        <h3 class="card-title">Komentar Menarik</h3>
+        <div id="highlights" class="highlights"></div>
+      </div>
+
+      <!-- Comment Tabs -->
+      <div class="result-card">
+        <h3 class="card-title">Klasifikasi Komentar</h3>
+        <div class="tabs">
+          <button class="tab active" data-tab="all">Semua</button>
+          <button class="tab" data-tab="positif">Positif</button>
+          <button class="tab" data-tab="netral">Netral</button>
+          <button class="tab" data-tab="negatif">Negatif</button>
+        </div>
+        <div id="commentList" class="comment-list"></div>
+      </div>
+
+      <!-- Report Button -->
+      <button id="reportBtn" class="btn btn-primary btn-full">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/>
+          <polyline points="14,2 14,8 20,8"/>
+          <line x1="16" y1="13" x2="8" y2="13"/>
+          <line x1="16" y1="17" x2="8" y2="17"/>
+          <polyline points="10,9 9,9 8,9"/>
+        </svg>
+        Buka Laporan Lengkap
+      </button>
+    </section>
+  </div>
+
+  <script src="popup.js"></script>
+</body>
+</html>
